@@ -7,6 +7,14 @@
  * ******************************************************************************/
 package Core
 // TODO: remove this
+import flexpret.core.BusIO
+import flexpret.core.CSR
+import flexpret.core.ControlDatapathIO
+import flexpret.core.DataMemCoreIO
+import flexpret.core.InstMemCoreIO
+import flexpret.core.FlexpretConfiguration
+import flexpret.core.GPIO
+import flexpret.core.HostIO
 import flexpret.core.RegisterFile
 
 import chisel3._
@@ -52,7 +60,7 @@ class Datapath(val debug: Boolean = false)(implicit conf: FlexpretConfiguration)
   val dec_reg_tid = Reg(UInt())
   val dec_reg_pc = Reg(UInt()) // alu op1, exception address
   val dec_reg_pc4 = Reg(UInt()) // rd for JAL*
-  val dec_reg_inst = Reg(Bits()) // decoded by control unit
+  val dec_reg_inst = Reg(UInt()) // decoded by control unit
 
   // execute stage
   val exe_reg_tid = Reg(UInt())

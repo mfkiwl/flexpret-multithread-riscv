@@ -1,50 +1,14 @@
-# Makefile fragment for generating C++ emulator from Chisel code.
-# Currently intended for only single testbench and Chisel source project.
-#
-# The following variables must be defined by the Makefile that includes this
-# fragment ([...] contains default value):
-# EMULATOR: Path to emulator executable
-# MODULE: Chisel top-level component
-# EMULATOR_SRC_DIR: Generated C++ emulator directory
-# EMULATOR_BUILD_DIR: Build directory
-# TESTBENCH: C++ testbench path [testbench/$(MODULE)-tb.cpp]
-# SRC_DIR: Chisel source code directory
-# CORE_CONFIG: Configuration string for Chisel
-# SBT: sbt command
-# SBT_TO_BASE: Relative directory location
-# CXX: C++ compiler
-# CXXFLAGS: C++ compiler flags
-#
-# Michael Zimmer (mzimmer@eecs.berkeley.edu)
+# Helper fragment to help run flexpret with verilator.
+# Copyright 2021 Edward Wang <edwardw@eecs.berkeley.edu>
 
+EMULATOR_BIN = $(EMULATOR_DIR)/flexpret-emulator
 
-TESTBENCH ?= $(EMULATOR_DIR)/testbench/$(MODULE)-tb.cpp
+$(EMULATOR_BIN): $(VERILOG_RAW) $(EMULATOR_DIR)/main.cpp scripts/simify_verilog.py
+	# Inject the right simulation constructs
+	./scripts/simify_verilog.py $(VERILOG_RAW) imem.hex.txt Core.vcd > $(EMULATOR_DIR)/Core.sim.v
 
-ifeq ($(DEBUG), true)
-SBT_ARGS = --debug --vcd
-endif
-#------------------------------------------------------------------------------
-# Generate C++ emulator 
-#------------------------------------------------------------------------------
-# Generate C++ emulator from Chisel code.
-$(EMULATOR_SRC_DIR)/$(MODULE).cpp: $(SRC_DIR)/$(MODULE)/*.scala
-	cd $(SBT_DIR) && \
-	$(SBT) "project Core" "run $(CORE_CONFIG) --backend c --targetDir $(SBT_TO_BASE)/$(EMULATOR_SRC_DIR) $(SBT_ARGS)"
+	(cd $(EMULATOR_DIR) && verilator --cc Core.sim.v --exe --trace --build main.cpp)
 
-# Create build directory if needed.
-$(EMULATOR_BUILD_DIR):
-	mkdir -p $(EMULATOR_BUILD_DIR)
+	cp $(EMULATOR_DIR)/obj_dir/VCore $(EMULATOR_BIN)
 
-# Compile C++ emulator.
-$(EMULATOR).o: $(addprefix $(EMULATOR_SRC_DIR)/, $(MODULE).cpp $(MODULE).h emulator.h) | $(EMULATOR_BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# Compile testbench.
-TESTBENCH_OPTS = $(if $(findstring true, $(FLEXPRET)),-DFLEXPRET) -DTHREADS=$(THREADS)
-$(EMULATOR)-tb.o: $(TESTBENCH) $(addprefix $(EMULATOR_SRC_DIR)/, $(MODULE).cpp $(MODULE).h emulator.h) | $(EMULATOR_BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -I$(EMULATOR_SRC_DIR) $(TESTBENCH_OPTS) -c $< -o $@
-
-# Link C++ emulator with testbench.
-$(EMULATOR): %: %.o %-tb.o
-	$(CXX) $(CXXFLAGS) -o $@ $^
-
+	echo "Emulator usage: Run $(EMULATOR_BIN) in a folder with imem.hex.txt. You can generate it with scripts/parse_disasm.py using an objdump. It will generate a VCD in Core.vcd. Writing 0xbaaabaaa will cause the next value to be printed. Writing 0xdeaddead to the tohost CSR will terminate the simulation."
