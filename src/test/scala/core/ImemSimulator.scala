@@ -9,14 +9,14 @@ package flexpret.core.test
 import org.scalatest._
 
 import chisel3._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import chiseltest._
-import chiseltest.experimental.TestOptionBuilder._
 
 import Core.FlexpretConstants._
 
 import flexpret.core._
-import Core.Datapath
 
 /**
  * Simulate an instruction memory module on a InstMemCoreIO.

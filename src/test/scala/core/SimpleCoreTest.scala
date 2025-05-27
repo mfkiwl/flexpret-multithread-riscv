@@ -6,30 +6,24 @@ License: See LICENSE.txt
 ******************************************************************************/
 package flexpret.core.test
 
-import org.scalatest._
-
 import chisel3._
-
 import chiseltest._
-import chiseltest.experimental.TestOptionBuilder._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-import Core.FlexpretConstants._
 
 import flexpret.core.Core
-//import flexpret.core.Datapath
 import flexpret.core.FlexpretConfiguration
 import flexpret.core.InstMemConfiguration
-import Core.Datapath
-import flexpret.core.InstMemCoreIO
 
-class SimpleCoreTest extends FlatSpec with ChiselScalatestTester {
+class SimpleCoreTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "Core (simple config)"
 
   val threads = 1
-  val conf = FlexpretConfiguration(threads=threads, flex=false,
+  val conf = FlexpretConfiguration(threads=threads, flex=false, clkFreqMHz=100,
     InstMemConfiguration(bypass=true, sizeKB=4),
-    dMemKB=256, mul=false, features="all")
-  def core = new Core(conf)
+    dMemKB=256, mul=false, priv=false, features="all")
+  def core = new Core(conf, "h00000000".asUInt(32.W))
 
   it should "write a CSR GPIO" in {
     test(core).withAnnotations(Seq(treadle.WriteVcdAnnotation)) { c =>
@@ -55,9 +49,9 @@ class SimpleCoreTest extends FlatSpec with ChiselScalatestTester {
         imemSim.sim(cycles=50)
       } .fork {
         for (i <- 0 to 50) {
-          val prev = c.io.gpio.out(0).peek.litValue
+          val prev = c.io.gpio.out(0).peek().litValue
           c.clock.step()
-          val after = c.io.gpio.out(0).peek.litValue
+          val after = c.io.gpio.out(0).peek().litValue
           if (after == 1 && prev == 0) upTransitioned = true
           if (after == 0 && prev == 1) downTransitioned = true
         }
@@ -75,7 +69,7 @@ class SimpleCoreTest extends FlatSpec with ChiselScalatestTester {
         prog=scala.collection.immutable.Vector(
           /* 0 */ "h054c43b7", // lui t2,0x54c4
           /* 4 */ "h4dc38393", // addi t2,t2,1244 # li t2, 88884444
-          /* 8 */ "h51e39073", // csrw 0x51e,t2
+          /* 8 */ "h53039073", // csrw 0x530,t2
           /* c */ "h0000006f", // j c <loop>
         ),
         defaultInstr="h00000067", // jr x0
@@ -90,7 +84,7 @@ class SimpleCoreTest extends FlatSpec with ChiselScalatestTester {
         for (i <- 0 to cycles) {
           c.clock.step()
         }
-        val toHostVal = c.io.host.to_host.peek.litValue
+        val toHostVal = c.io.host.to_host.peek().litValue
         assert(toHostVal == 88884444)
       } .join
     }
@@ -104,11 +98,11 @@ class SimpleCoreTest extends FlatSpec with ChiselScalatestTester {
   // set stack pointer
   li sp, 0x20001000
 
-  csrwi 0x51e, 18
+  csrwi 0x530, 18
 
   li a0, 10 // 2^10
   call poww
-  csrw 0x51e, a0 // tohost
+  csrw 0x530, a0 // tohost
 loop:
   j loop
 
@@ -122,10 +116,10 @@ loop:
          */
         prog=scala.collection.immutable.Vector(
   /* 0 */ "h20001137", // lui sp,0x20001
-  /* 4 */ "h51e95073", // csrwi 0x51e,18
+  /* 4 */ "h53095073", // csrwi 0x530,18
   /* 8 */ "h00a00513", // li a0,10
   /* c */ "h00c000ef", // jal ra,18 <poww>
-  /* 10 */ "h51e51073", // csrw 0x51e,a0
+  /* 10 */ "h53051073", // csrw 0x530,a0
   /* 14 */ "h0000006f", // j 14 <loop>
   /* 18 */ "hfe010113", // addi sp,sp,-32 # 20000fe0 <__global_pointer$+0x1ffff738>
   /* 1c */ "h00112e23", // sw ra,28(sp)
@@ -161,7 +155,7 @@ loop:
       } .fork {
         for (i <- 0 to cycles) {
           c.clock.step()
-          if (c.io.host.to_host.peek.litValue == 1024) seen1024 = true
+          if (c.io.host.to_host.peek().litValue == 1024) seen1024 = true
         }
       } .join
 

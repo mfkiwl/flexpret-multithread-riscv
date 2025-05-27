@@ -6,45 +6,42 @@ License: See LICENSE.txt
 ******************************************************************************/
 package flexpret.core.test
 
-import org.scalatest._
-
 import chisel3._
-
 import chiseltest._
-import chiseltest.experimental.TestOptionBuilder._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import Core.FlexpretConstants._
 
 import flexpret.core._
-import Core.Datapath
 
-class BasicJumpsTest extends FlatSpec with ChiselScalatestTester {
+class BasicJumpsTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "Basic jumps"
 
   val threads = 1
-  val conf = FlexpretConfiguration(threads=threads, flex=false,
+  val conf = FlexpretConfiguration(threads=threads, flex=false, clkFreqMHz=100,
     InstMemConfiguration(bypass=true, sizeKB=4),
-    dMemKB=256, mul=false, features="all")
-  def core = new Core(conf)
+    dMemKB=256, mul=false, priv=false, features="all")
+  def core = new Core(conf, "h00000000".asUInt(32.W))
 
   it should "jal" in {
     test(core).withAnnotations(Seq(treadle.WriteVcdAnnotation)) { c =>
       val imemSim = new ImemSimulator(
         // Generate with ./scripts/parse_disasm.py
         /**
-  csrwi 0x51e, 16 // tohost
+  csrwi 0x530, 16 // tohost
   jal t0, 0xc // note, RISC-V asm syntax specifies this as byte offset
   nop
   nop
-  csrw 0x51e, t0
+  csrw 0x530, t0
   loop: j loop
          */
         prog=scala.collection.immutable.Vector(
-          /* 0 */ "h51e85073", // csrwi 0x51e,16
+          /* 0 */ "h53085073", // csrwi 0x530,16
           /* 4 */ "h008002ef", // jal t0,c <_start+0xc>
           /* 8 */ "h00000013", // nop
           /* c */ "h00000013", // nop
-          /* 10 */ "h51e29073", // csrw 0x51e,t0
+          /* 10 */ "h53029073", // csrw 0x530,t0
           /* 14 */ "h0000006f", // j 14 <loop>
         ),
         defaultInstr="h00000067", // jr x0
@@ -60,9 +57,9 @@ class BasicJumpsTest extends FlatSpec with ChiselScalatestTester {
       } .fork {
         for (i <- 0 to cycles) {
           c.clock.step()
-          if (c.io.host.to_host.peek.litValue == 8) correct = true
+          if (c.io.host.to_host.peek().litValue == 8) correct = true
         }
-      } .join
+      }.join()
 
       assert(correct, "jal should have jumped correctly")
     }
@@ -73,7 +70,7 @@ class BasicJumpsTest extends FlatSpec with ChiselScalatestTester {
       val imemSim = new ImemSimulator(
         // Generate with ./scripts/parse_disasm.py
         /**
-  csrwi 0x51e, 3 // tohost
+  csrwi 0x530, 3 // tohost
   la t1, loopp
   jalr t0, t1, -4
   nop
@@ -87,11 +84,11 @@ class BasicJumpsTest extends FlatSpec with ChiselScalatestTester {
   nop
   nop
   nop
-  csrw 0x51e, t0
+  csrw 0x530, t0
   loopp: j loopp
          */
         prog=scala.collection.immutable.Vector(
-  /* 0 */ "h51e1d073", // csrwi 0x51e,3
+  /* 0 */ "h5301d073", // csrwi 0x530,3
   /* 4 */ "h00000317", // auipc t1,0x0
   /* 8 */ "h03c30313", // addi t1,t1,60 # 40 <loopp>
   /* c */ "hffc302e7", // jalr t0,-4(t1)
@@ -106,7 +103,7 @@ class BasicJumpsTest extends FlatSpec with ChiselScalatestTester {
   /* 30 */ "h00000013", // nop
   /* 34 */ "h00000013", // nop
   /* 38 */ "h00000013", // nop
-  /* 3c */ "h51e29073", // csrw 0x51e,t0
+  /* 3c */ "h53029073", // csrw 0x530,t0
   /* 40 */ "h0000006f", // j 40 <loopp>
         ),
         defaultInstr="h00000067", // jr x0
@@ -122,7 +119,7 @@ class BasicJumpsTest extends FlatSpec with ChiselScalatestTester {
       } .fork {
         for (i <- 0 to cycles) {
           c.clock.step()
-          if (c.io.host.to_host.peek.litValue == 0x10) correct = true
+          if (c.io.host.to_host.peek().litValue == 0x10) correct = true
         }
       } .join
 

@@ -6,26 +6,23 @@ License: See LICENSE.txt
 ******************************************************************************/
 package flexpret.core.test
 
-import org.scalatest._
-
 import chisel3._
-
 import chiseltest._
-import chiseltest.experimental.TestOptionBuilder._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import Core.FlexpretConstants._
 
 import flexpret.core._
-import Core.Datapath
 
-class BasicMemoryTest extends FlatSpec with ChiselScalatestTester {
+class BasicMemoryTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "Basic memory instructions"
 
   val threads = 1
-  val conf = FlexpretConfiguration(threads=threads, flex=false,
+  val conf = FlexpretConfiguration(threads=threads, flex=false, clkFreqMHz=100,
     InstMemConfiguration(bypass=true, sizeKB=4),
-    dMemKB=256, mul=false, features="all")
-  def core = new Core(conf)
+    dMemKB=256, mul=false, priv=false, features="all")
+  def core = new Core(conf, "h00000000".asUInt(32.W))
 
   it should "lw/sw" in {
     test(core).withAnnotations(Seq(treadle.WriteVcdAnnotation)) { c =>
@@ -35,7 +32,7 @@ class BasicMemoryTest extends FlatSpec with ChiselScalatestTester {
   // set stack pointer
   li sp, 0x20001000
 
-  csrwi 0x51e, 8
+  csrwi 0x530, 8
 
   li t0, 0x1234face
   sw t0, -16(sp)
@@ -56,14 +53,14 @@ class BasicMemoryTest extends FlatSpec with ChiselScalatestTester {
   lw t0, -20(sp)
   lw t1, 24(sp)
   lw t2, 0(sp)
-  csrw 0x51e, t0
-  csrw 0x51e, t1
-  csrw 0x51e, t2
+  csrw 0x530, t0
+  csrw 0x530, t1
+  csrw 0x530, t2
   loopp: j loopp
          */
         prog=scala.collection.immutable.Vector(
   /* 0 */ "h20001137", // lui sp,0x20001
-  /* 4 */ "h51e45073", // csrwi 0x51e,8
+  /* 4 */ "h53045073", // csrwi 0x530,8
   /* 8 */ "h123502b7", // lui t0,0x12350
   /* c */ "hace28293", // addi t0,t0,-1330 # 1234face <__global_pointer$+0x1234e1ba>
   /* 10 */ "hfe512823", // sw t0,-16(sp) # 20000ff0 <__global_pointer$+0x1ffff6dc>
@@ -80,9 +77,9 @@ class BasicMemoryTest extends FlatSpec with ChiselScalatestTester {
   /* 3c */ "hfec12283", // lw t0,-20(sp)
   /* 40 */ "h01812303", // lw t1,24(sp)
   /* 44 */ "h00012383", // lw t2,0(sp)
-  /* 48 */ "h51e29073", // csrw 0x51e,t0
-  /* 4c */ "h51e31073", // csrw 0x51e,t1
-  /* 50 */ "h51e39073", // csrw 0x51e,t2
+  /* 48 */ "h53029073", // csrw 0x530,t0
+  /* 4c */ "h53031073", // csrw 0x530,t1
+  /* 50 */ "h53039073", // csrw 0x530,t2
   /* 54 */ "h0000006f", // j 54 <loopp>
         ),
         defaultInstr="h00000067", // jr x0
@@ -101,11 +98,11 @@ class BasicMemoryTest extends FlatSpec with ChiselScalatestTester {
         for (i <- 0 to cycles) {
           c.clock.step()
           if (!seen1) {
-            if (c.io.host.to_host.peek.litValue == 0x1234face) seen1 = true
+            if (c.io.host.to_host.peek().litValue == 0x1234face) seen1 = true
           } else if (!seen2) {
-            if (c.io.host.to_host.peek.litValue == 0x12340000) seen2 = true
+            if (c.io.host.to_host.peek().litValue == 0x12340000) seen2 = true
           } else {
-            if (c.io.host.to_host.peek.litValue == BigInt("ffffffff", 16)) seen3 = true
+            if (c.io.host.to_host.peek().litValue == BigInt("ffffffff", 16)) seen3 = true
           }
         }
       } .join

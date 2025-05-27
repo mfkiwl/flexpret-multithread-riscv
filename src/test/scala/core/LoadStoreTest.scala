@@ -6,12 +6,11 @@ License: See LICENSE.txt
 ******************************************************************************/
 package flexpret.core.test
 
-import org.scalatest._
-
 import chisel3._
 
 import chiseltest._
-import chiseltest.experimental.TestOptionBuilder._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import Core.FlexpretConstants._
 import Core.LoadStore
@@ -19,13 +18,13 @@ import Core.LoadStore
 import flexpret.core.FlexpretConfiguration
 import flexpret.core.InstMemConfiguration
 
-class LoadStoreTest extends FlatSpec with ChiselScalatestTester {
+class LoadStoreTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "LoadStore"
 
   val threads = 1
-  val conf = FlexpretConfiguration(threads=threads, flex=false,
+  val conf = FlexpretConfiguration(threads=threads, flex=false, clkFreqMHz=100,
     InstMemConfiguration(bypass=false, sizeKB=512),
-    dMemKB=512, mul=false, features="all")
+    dMemKB=512, mul=false, priv=false, features="all")
   def loadStore = new LoadStore()(conf=conf)
 
   it should "not crash with an invalid request if not enabled" in {

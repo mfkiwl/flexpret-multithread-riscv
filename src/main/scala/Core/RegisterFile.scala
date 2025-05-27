@@ -8,9 +8,8 @@ License: See LICENSE.txt
 package flexpret.core
 
 import chisel3._
-import chisel3.util.{Cat, log2Ceil, MuxLookup}
+import chisel3.util.{Cat, log2Ceil, MuxLookup, MuxCase}
 import Core.FlexpretConstants._
-import chisel3.experimental.chiselName
 
 class RegisterFileReadIO(val threadBits: Int) extends Bundle {
   val thread = Input(UInt(threadBits.W))
@@ -29,7 +28,6 @@ object RegisterFile {
   def apply(readPorts: Int = 2, writePorts: Int = 1)(implicit conf: FlexpretConfiguration): RegisterFile = new RegisterFile(conf.threads, readPorts=readPorts, writePorts=writePorts)
 }
 
-@chiselName
 class RegisterFile(val threads: Int, val readPorts: Int = 2, val writePorts: Int = 1) extends Module {
   /* Number of bits. */
   val threadBits = log2Ceil(threads)
@@ -66,14 +64,16 @@ class RegisterFile(val threads: Int, val readPorts: Int = 2, val writePorts: Int
     // We also need to register the data and addresses since we are returning
     // last cycle's requests.
     val readUnderWrites = (writeIndexes zip io.write).map { case (writeIndex, writePort) =>
-      (RegNext(writeIndex) -> RegNext(writePort.data))
+      (RegNext(writeIndex) ->
+        MuxCase(RegNext(writePort.data), Array(
+        RegNext(writePort.addr === 0.U) -> 0.U,
+        RegNext(!writePort.enable) -> regfileRead
+      )))
     }
 
     val readIndexReg = RegNext(readIndex)
-    readPort.data := MuxLookup(readIndexReg, regfileRead, Array(
-      // Reading register 0
-      (0.U -> 0.U)
-    ) ++ readUnderWrites)
+    readPort.data := MuxLookup(readIndexReg, regfileRead, readUnderWrites)
+
   }
 
   // Write ports

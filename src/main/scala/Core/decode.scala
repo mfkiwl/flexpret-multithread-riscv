@@ -27,8 +27,10 @@ MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 // https://github.com/ucb-bar/rocket/blob/master/src/main/scala/decode.scala
 package Core
 
-import Chisel._
+import chisel3._
+import chisel3.util._
 import scala.collection.mutable.{ArrayBuffer, Map}
+import scala.language.postfixOps
 
 object DecodeLogic
 {
@@ -36,8 +38,8 @@ object DecodeLogic
     new Term(lit.value, BigInt(2).pow(lit.getWidth)-(lit.mask+1))
   def logic(addr: UInt, addrWidth: Int, cache: scala.collection.mutable.Map[Term,Bool], terms: Seq[Term]) = {
     terms.map { t =>
-      cache.getOrElseUpdate(t, (if (t.mask == 0) addr else addr & Bits(BigInt(2).pow(addrWidth)-(t.mask+1), addrWidth)) === Bits(t.value, addrWidth))
-    }.foldLeft(Bool(false))(_||_)
+      cache.getOrElseUpdate(t, (if (t.mask == 0) addr else addr & (BigInt(2).pow(addrWidth)-(t.mask+1)).U(addrWidth.W)) === t.value.U(addrWidth.W))
+    }.foldLeft(false.B)(_||_)
   }
   def apply(addr: UInt, default: BitPat, mapping: Iterable[(BitPat, BitPat)]): UInt = {
     val cache = caches.getOrElseUpdate(addr, collection.mutable.Map[Term,Bool]())
@@ -75,7 +77,7 @@ object DecodeLogic
       yield apply(addr, thisDefault, thisMapping)
   }
   def apply(addr: UInt, trues: Iterable[UInt], falses: Iterable[UInt]): Bool =
-    apply(addr, BitPat.dontCare(1), trues.map(BitPat(_) -> BitPat("b1")) ++ falses.map(BitPat(_) -> BitPat("b0"))).toBool
+    apply(addr, BitPat.dontCare(1), trues.map(BitPat(_) -> BitPat("b1")) ++ falses.map(BitPat(_) -> BitPat("b0"))).asBool
   def apply(addr: UInt, tru: UInt, fals: UInt): Bool =
     apply(addr, Seq(tru), Seq(fals))
   private val caches = collection.mutable.Map[UInt,collection.mutable.Map[Term,Bool]]()

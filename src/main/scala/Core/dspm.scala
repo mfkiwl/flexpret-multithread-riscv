@@ -16,8 +16,6 @@ class DataMemCoreIO(implicit conf: FlexpretConfiguration) extends Bundle {
   val data_out = Output(UInt(32.W))
   val byte_write = Input(Vec(4, Bool()))
   val data_in = Input(UInt(32.W))
-
-  override def cloneType = (new DataMemCoreIO).asInstanceOf[this.type]
 }
 
 class DSpm(implicit conf: FlexpretConfiguration) extends Module {
@@ -42,13 +40,17 @@ class DSpm(implicit conf: FlexpretConfiguration) extends Module {
   // read/write port for core
   val corePort = dspm.read(io.core.addr, io.core.enable)
   io.core.data_out := corePort.asUInt
-  dspm.write(io.core.addr, split(io.core.data_in), io.core.byte_write)
+  when (io.core.enable) {
+    dspm.write(io.core.addr, split(io.core.data_in), io.core.byte_write)
+  }
 
   if(conf.dMemBusRW) { 
     // read/write port for bus
     val busPort = dspm.read(io.bus.addr, io.bus.enable)
     io.bus.data_out := busPort.asUInt
-    dspm.write(io.bus.addr, split(io.bus.data_in), io.bus.byte_write)
+    when (io.bus.enable) {
+      dspm.write(io.bus.addr, split(io.bus.data_in), io.bus.byte_write)
+    }
   } else {
     io.bus.data_out := 0.U
   }

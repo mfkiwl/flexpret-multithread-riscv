@@ -1,12 +1,39 @@
-build
-generated-src
-results
-
+.bloop/
+.metals/
+.vscode/
+.idea
+.bsp
+project/
+target/
+build/
+bin/
+out/
 test_run_dir/
 
 mill
 firrtl.jar
-fpga/generated-src
-out/
-
 .DS_Store
+
+# Generated files
+**/*.mem
+**/*.mem.serialized
+**/*.out
+**/*.dump
+**/*.vcd
+**/*.riscv
+**/*.map
+**/*.orig
+**/*.dump
+**/*.a
+**/*.elf
+**/callgraph
+
+**/fp-emu
+
+# Misc
+.vscode/
+project/
+target/
+.bloop/
+emulator/obj_dir/
+emulator/*.v

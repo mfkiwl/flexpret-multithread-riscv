@@ -6,18 +6,17 @@ License: See LICENSE.txt
 ******************************************************************************/
 package flexpret.core.test
 
-import org.scalatest._
-
 import chisel3._
 import chisel3.stage.ChiselStage
 import chisel3.util.DecoupledIO
 
 import chiseltest._
-import chiseltest.experimental.TestOptionBuilder._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import flexpret.core._
 
-class MMIOCoreTest extends FlatSpec with ChiselScalatestTester {
+class MMIOCoreTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "MMIOCore"
 
   val config = Seq(
@@ -32,14 +31,14 @@ class MMIOCoreTest extends FlatSpec with ChiselScalatestTester {
   def waitForDecoupled(c: Module, d: DecoupledIO[Data]): Unit = {
     timescope {
       d.valid.poke(false.B)
-      while(d.ready.peek().litValue() == 0) {
+      while(d.ready.peek().litValue == 0) {
         c.clock.step()
       }
     }
   }
 
   it should "prohibit duplicate keys" in {
-    intercept[ChiselException] {
+    intercept[java.lang.IllegalArgumentException] {
       ChiselStage.elaborate { new MMIOCore(Seq(
         ("dup", 2, 0, MMIOInput),
         ("dup", 2, 1, MMIOOutput)
@@ -48,7 +47,7 @@ class MMIOCoreTest extends FlatSpec with ChiselScalatestTester {
   }
 
   it should "prohibit duplicate offsets" in {
-    intercept[ChiselException] {
+    intercept[java.lang.IllegalArgumentException] {
       ChiselStage.elaborate { new MMIOCore(Seq(
         ("a", 4, 0, MMIOInput),
         ("b", 8, 0, MMIOOutput)
@@ -80,13 +79,13 @@ class MMIOCoreTest extends FlatSpec with ChiselScalatestTester {
 
     timescope {
       c.io.readResp.ready.poke(true.B)
-      while(c.io.readResp.valid.peek().litValue() == 0) {
+      while(c.io.readResp.valid.peek().litValue == 0) {
         c.clock.step()
       }
       c.io.readResp.bits.addr.expect(2.U)
       c.io.readResp.bits.data.expect(1.U)
       c.clock.step()
-      while(c.io.readResp.valid.peek().litValue() == 0) {
+      while(c.io.readResp.valid.peek().litValue == 0) {
         c.clock.step()
       }
       c.io.readResp.bits.addr.expect(0.U)
